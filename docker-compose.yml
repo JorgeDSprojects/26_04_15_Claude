@@ -1,0 +1,36 @@
+name: aeronorth-uns
+
+services:
+  mqtt-broker:
+    image: emqx/emqx:5.8.3
+    container_name: aeronorth-mqtt-broker
+    restart: unless-stopped
+    environment:
+      EMQX_NAME: aeronorth-emqx
+      EMQX_HOST: 127.0.0.1
+      EMQX_DASHBOARD__DEFAULT_USERNAME: ${EMQX_DASHBOARD_USER:-admin}
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:-public123}
+      EMQX_RETAINER__BACKEND__STORAGE_TYPE: disc
+    ports:
+      - "1883:1883"
+      - "18083:18083"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+    networks:
+      - uns-network
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  uns-network:
+    name: uns-network
+    driver: bridge
+
+volumes:
+  emqx-data:
+  emqx-log:
