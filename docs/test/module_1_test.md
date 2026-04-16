@@ -28,6 +28,24 @@ curl -s -X POST http://localhost:18083/api/v5/authentication \
   -H "Content-Type: application/json" \
   -d '{"mechanism":"password_based","backend":"built_in_database","user_id_type":"username"}'
 
+```
+1. Ejecuta este Paso 2 corregido:
+Copia y pega este comando en tu terminal WSL (donde el $TOKEN todavía está guardado en la memoria):
+
+Bash
+```
+curl -s -X POST http://localhost:18083/api/v5/authentication \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mechanism":"password_based","backend":"built_in_database","user_id_type":"username","password_hash_algorithm":{"name":"sha256","salt_position":"suffix"}}'
+```
+
+
+```
+
+
+
+
 # 3. Create the test user
 curl -s -X POST "http://localhost:18083/api/v5/authentication/password_based:built_in_database/users" \
   -H "Authorization: Bearer $TOKEN" \
@@ -189,13 +207,13 @@ docker compose config --quiet
 
 All of the following must be true before closing Module 1:
 
-- [ ] T1: `mqtt-broker` container reports `healthy`
-- [ ] T2: EMQX dashboard loads at `http://localhost:18083`
-- [ ] T3: Basic pub/sub works
-- [ ] T4: Retained message arrives on subscriber reconnect
-- [ ] T5: Retained message can be cleared with an empty payload
-- [ ] T6: `+` and `#` wildcards match as expected
-- [ ] T7: Retained messages survive a container restart (volume persisted)
-- [ ] T8: `docker compose config` exits cleanly
+- [x] T1: `mqtt-broker` container reports `healthy`
+- [x] T2: EMQX dashboard loads at `http://localhost:18083`
+- [x] T3: Basic pub/sub works
+- [x] T4: Retained message arrives on subscriber reconnect
+- [x] T5: Retained message can be cleared with an empty payload
+- [x] T6: `+` and `#` wildcards match as expected
+- [x] T7: Retained messages survive a container restart (volume persisted)
+- [x] T8: `docker compose config` exits cleanly
 
 Once all boxes are checked, Jorge writes `docs/es/10-modulo-01-broker.md` and then Module 2 begins.

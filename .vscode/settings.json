@@ -1,7 +1,38 @@
-New-Item -ItemType Directory -Force -Path .vscode | Out-Null
-@'
 {
-  "python.defaultInterpreterPath": ".venv\\Scripts\\python.exe",
-  "python.analysis.autoImportCompletions": true
+  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.analysis.autoImportCompletions": true,
+  "terminal.integrated.defaultProfile.windows": "PowerShell (venv)",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell (venv)": {
+      "source": "PowerShell",
+      "args": [
+        "-NoExit",
+        "-Command",
+        "& '${workspaceFolder}\\.venv\\Scripts\\Activate.ps1'"
+      ]
+    },
+    "Command Prompt (venv)": {
+      "path": [
+        "${env:windir}\\Sysnative\\cmd.exe",
+        "${env:windir}\\System32\\cmd.exe"
+      ],
+      "args": [
+        "/K",
+        "${workspaceFolder}\\.venv\\Scripts\\activate.bat"
+      ]
+    },
+    "Git Bash (venv)": {
+      "path": [
+        "${env:ProgramFiles}\\Git\\bin\\bash.exe",
+        "${env:ProgramFiles(x86)}\\Git\\bin\\bash.exe"
+      ],
+      "args": [
+        "-i",
+        "-c",
+        "source .venv/Scripts/activate ; exec bash -i"
+      ]
+    }
+  }
 }
-'@ | Set-Content -Encoding utf8 .vscode\settings.json

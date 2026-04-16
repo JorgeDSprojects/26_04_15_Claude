@@ -5,5 +5,5 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.mqtt_helper import publish
 
-publish("demo/retained", '{"val":42}', retain=True)
+publish("demo/retained", '{"val":48}', retain=True)
 print("[OK] Retained message published to demo/retained")
