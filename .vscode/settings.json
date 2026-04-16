@@ -1,0 +1,7 @@
+New-Item -ItemType Directory -Force -Path .vscode | Out-Null
+@'
+{
+  "python.defaultInterpreterPath": ".venv\\Scripts\\python.exe",
+  "python.analysis.autoImportCompletions": true
+}
+'@ | Set-Content -Encoding utf8 .vscode\settings.json
