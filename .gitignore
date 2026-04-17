@@ -4,9 +4,4 @@ __pycache__/
 *.pyo
 .venv/
 .claude/settings.json
-
-@'
-.venv/
-.env
-requirements.lock.txt
-'@ | Add-Content -Encoding utf8 .gitignore
+.worktrees/
