@@ -13,6 +13,7 @@ services:
       EMQX_RETAINER__BACKEND__STORAGE_TYPE: disc
     ports:
       - "1883:1883"
+      - "1884:1883"
       - "18083:18083"
     volumes:
       - emqx-data:/opt/emqx/data
@@ -25,6 +26,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+  simulator:
+    build: ./services/simulator
+    container_name: aeronorth-simulator
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: mqtt-broker
+      MQTT_PORT: 1883
+      MQTT_USER: ${MQTT_USER:-testuser}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-testpass}
+      SIM_INTERVAL_MS: ${SIM_INTERVAL_MS:-10000}
+      SIM_ASSET_PATH: ${SIM_ASSET_PATH:-aeronorth/windfarm_north/sector_a/turbine_03}
+    networks:
+      - uns-network
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy
 
 networks:
   uns-network:
