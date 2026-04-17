@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 
 revision: str = "0001"
 down_revision: Union[str, None] = None
@@ -17,8 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE TYPE criticality_level AS ENUM ('standard', 'buffered', 'critical')")
-    op.execute("CREATE TYPE signal_datatype AS ENUM ('float', 'int', 'bool', 'string', 'enum')")
+    op.execute("DO $$ BEGIN CREATE TYPE criticality_level AS ENUM ('standard', 'buffered', 'critical'); EXCEPTION WHEN duplicate_object THEN NULL; END $$")
+    op.execute("DO $$ BEGIN CREATE TYPE signal_datatype AS ENUM ('float', 'int', 'bool', 'string', 'enum'); EXCEPTION WHEN duplicate_object THEN NULL; END $$")
 
     op.create_table(
         "asset_types",
@@ -100,7 +101,7 @@ def upgrade() -> None:
         sa.Column("unit", sa.Text),
         sa.Column(
             "datatype",
-            sa.Enum(
+            PgEnum(
                 "float", "int", "bool", "string", "enum",
                 name="signal_datatype",
                 create_type=False,
@@ -109,7 +110,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "criticality",
-            sa.Enum(
+            PgEnum(
                 "standard", "buffered", "critical",
                 name="criticality_level",
                 create_type=False,

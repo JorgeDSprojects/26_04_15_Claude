@@ -11,7 +11,7 @@
 
 - Modules 1–3 hito passed (broker + simulator + Telegraf/TimescaleDB running).
 - Docker and Docker Compose installed.
-- `curl` and `jq` available on the host.
+- `curl` available on the host (`jq` optional — commands below work without it).
 
 ## Step 0 — Build and start
 
@@ -33,17 +33,17 @@ INFO:     Application startup complete.
 ## Step 1 — Health check
 
 ```bash
-curl http://localhost:8000/health
+curl -s http://localhost:8000/health
 # Expected: {"status":"ok"}
 ```
 
 ## Step 2 — Verify seed data
 
 ```bash
-curl http://localhost:8000/api/v1/asset-types | jq
+curl -s http://localhost:8000/api/v1/asset-types
 # Must return 10 entries: enterprise, wind_farm, sector, wind_turbine, rotor, nacelle, generator, gearbox, tower, controller
 
-curl http://localhost:8000/api/v1/signal-types | jq
+curl -s http://localhost:8000/api/v1/signal-types
 # Must return 4 entries: informative, operational, descriptive, analytic
 ```
 
@@ -55,27 +55,27 @@ Create the full ISA-95 path for turbine_03 bottom-up (parents before children):
 # Enterprise
 curl -s -X POST http://localhost:8000/api/v1/assets \
   -H "Content-Type: application/json" \
-  -d '{"asset_type_id":1,"code":"aeronorth","display_name":"AeroNorth","path":"aeronorth"}' | jq
+  -d '{"asset_type_id":1,"code":"aeronorth","display_name":"AeroNorth","path":"aeronorth"}'
 
 # Site
 curl -s -X POST http://localhost:8000/api/v1/assets \
   -H "Content-Type: application/json" \
-  -d '{"parent_id":1,"asset_type_id":2,"code":"windfarm_north","display_name":"Wind Farm North","path":"aeronorth/windfarm_north"}' | jq
+  -d '{"parent_id":1,"asset_type_id":2,"code":"windfarm_north","display_name":"Wind Farm North","path":"aeronorth/windfarm_north"}'
 
 # Area
 curl -s -X POST http://localhost:8000/api/v1/assets \
   -H "Content-Type: application/json" \
-  -d '{"parent_id":2,"asset_type_id":3,"code":"sector_a","display_name":"Sector A","path":"aeronorth/windfarm_north/sector_a"}' | jq
+  -d '{"parent_id":2,"asset_type_id":3,"code":"sector_a","display_name":"Sector A","path":"aeronorth/windfarm_north/sector_a"}'
 
 # Line (turbine)
 curl -s -X POST http://localhost:8000/api/v1/assets \
   -H "Content-Type: application/json" \
-  -d '{"parent_id":3,"asset_type_id":4,"code":"turbine_03","display_name":"Turbine 03","path":"aeronorth/windfarm_north/sector_a/turbine_03"}' | jq
+  -d '{"parent_id":3,"asset_type_id":4,"code":"turbine_03","display_name":"Turbine 03","path":"aeronorth/windfarm_north/sector_a/turbine_03"}'
 
 # Cell (rotor)
 curl -s -X POST http://localhost:8000/api/v1/assets \
   -H "Content-Type: application/json" \
-  -d '{"parent_id":4,"asset_type_id":5,"code":"rotor","display_name":"Turbine 03 > Rotor","path":"aeronorth/windfarm_north/sector_a/turbine_03/rotor"}' | jq
+  -d '{"parent_id":4,"asset_type_id":5,"code":"rotor","display_name":"Turbine 03 > Rotor","path":"aeronorth/windfarm_north/sector_a/turbine_03/rotor"}'
 ```
 
 ## Step 4 — Create a signal via REST
@@ -93,7 +93,7 @@ curl -s -X POST http://localhost:8000/api/v1/signals \
     "criticality": "buffered",
     "min_value": 0,
     "max_value": 25
-  }' | jq
+  }'
 ```
 
 **Expected:** Response includes `"topic": "aeronorth/windfarm_north/sector_a/turbine_03/rotor/measure/rpm"` — topic is precomputed server-side. Client never supplied it.
@@ -101,28 +101,76 @@ curl -s -X POST http://localhost:8000/api/v1/signals \
 ## Step 5 — Verify topic in GET /api/v1/signals
 
 ```bash
-curl http://localhost:8000/api/v1/signals | jq '.[0].topic'
-# Must return: "aeronorth/windfarm_north/sector_a/turbine_03/rotor/measure/rpm"
+curl -s http://localhost:8000/api/v1/signals
+# In the output, .[0].topic must be: "aeronorth/windfarm_north/sector_a/turbine_03/rotor/measure/rpm"
 ```
 
 ## Step 6 — SQLAdmin UI
 
-Open [http://localhost:8000/admin](http://localhost:8000/admin) in a browser.
+El objetivo de este paso es verificar que la UI de administración funciona y que el topic se computa correctamente también cuando se crea una señal desde la interfaz web (no solo desde la API).
 
-1. Navigate to **Signals**.
-2. You must see the rpm signal with the correct topic.
-3. Create a new signal for `nacelle` cell (`asset_id` 6 if you created it, or create the nacelle asset first):
-   - Asset: turbine_03/nacelle
-   - Name: `wind_speed`, type informative, unit `m/s`, datatype float
-4. After saving, confirm the topic is `aeronorth/windfarm_north/sector_a/turbine_03/nacelle/measure/wind_speed`.
+### 6a — Verificar la señal rpm existente
+
+1. Abre [http://localhost:8000/admin](http://localhost:8000/admin) en el navegador.
+2. En el menú lateral izquierdo haz clic en **Signal** (o "Signals").
+3. Verás la señal `rpm` creada en Step 4. Haz clic en ella para abrir el detalle.
+4. Confirma que el campo **Topic** muestra exactamente:
+   ```
+   aeronorth/windfarm_north/sector_a/turbine_03/rotor/measure/rpm
+   ```
+   Si el topic aparece vacío o incorrecto, hay un bug en `compute_topic()`.
+
+### 6b — Crear el asset nacelle (ya creado via curl, asset_id=15)
+
+El asset `nacelle` fue creado por curl con id=15. Puedes verificarlo en el menú **Asset** de SQLAdmin — debe aparecer con path `aeronorth/windfarm_north/sector_a/turbine_03/nacelle`.
+
+Si por algún motivo no existe, créalo via curl antes de continuar:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/assets \
+  -H "Content-Type: application/json" \
+  -d '{"parent_id":11,"asset_type_id":6,"code":"nacelle","display_name":"Turbine 03 > Nacelle","path":"aeronorth/windfarm_north/sector_a/turbine_03/nacelle"}'
+# Anota el "id" que devuelve — lo necesitas en el paso siguiente
+```
+
+### 6c — Crear la señal wind_speed desde SQLAdmin
+
+1. En el menú lateral haz clic en **Signal**.
+2. Haz clic en el botón **Create** (esquina superior derecha).
+3. Rellena el formulario:
+   - **Asset**: selecciona el que muestra `aeronorth/windfarm_north/sector_a/turbine_03/nacelle` (id=15)
+   - **Signal type**: selecciona `informative`
+   - **Name**: `wind_speed`
+   - **Display name**: `Wind Speed`
+   - **Unit**: `m/s`
+   - **Datatype**: `float`
+   - **Criticality**: `buffered`
+   - Deja el resto vacío o con sus valores por defecto
+4. Haz clic en **Save**.
+
+### 6d — Confirmar el topic
+
+Después de guardar, SQLAdmin te redirige a la lista de señales. Haz clic en `wind_speed` para abrir el detalle.
+
+El campo **Topic** debe mostrar exactamente:
+```
+aeronorth/windfarm_north/sector_a/turbine_03/nacelle/measure/wind_speed
+```
+
+También puedes verificarlo via curl:
+
+```bash
+curl -s http://localhost:8000/api/v1/signals
+# Busca el objeto con "name":"wind_speed" y confirma su "topic"
+```
 
 ## Step 7 — PATCH (update) a signal
 
 ```bash
 curl -s -X PATCH http://localhost:8000/api/v1/signals/1 \
   -H "Content-Type: application/json" \
-  -d '{"criticality": "critical"}' | jq '.criticality'
-# Expected: "critical"
+  -d '{"criticality": "critical"}'
+# Expected: response contains "criticality":"critical"
 ```
 
 ## Step 8 — Cold-start verification
@@ -130,8 +178,8 @@ curl -s -X PATCH http://localhost:8000/api/v1/signals/1 \
 ```bash
 docker compose down
 docker compose up -d postgres api-service
-curl http://localhost:8000/api/v1/signals | jq 'length'
-# Must return same count as before — data persisted in postgres-data volume
+curl -s http://localhost:8000/api/v1/signals
+# Must return the same signals as before — data persisted in postgres-data volume
 ```
 
 ## Step 9 — Alembic downgrade/upgrade cycle
@@ -151,7 +199,7 @@ docker compose up -d postgres api-service
 # Visit http://localhost:8000/admin in browser — log in, navigate to Signals
 # Create a signal via SQLAdmin: asset turbine_03/rotor, name "rpm", informative, float, criticality "buffered"
 # Then:
-curl http://localhost:8000/api/v1/signals | jq
+curl -s http://localhost:8000/api/v1/signals
 ```
 
 The created signal must appear with the precomputed topic `aeronorth/windfarm_north/sector_a/turbine_03/rotor/measure/rpm`.
