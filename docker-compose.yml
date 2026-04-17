@@ -66,6 +66,47 @@ services:
       retries: 5
       start_period: 20s
 
+  postgres:
+    image: postgres:16
+    container_name: aeronorth-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pgpass}
+      POSTGRES_DB: ${POSTGRES_DB:-uns}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - uns-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-uns}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api-service:
+    build: ./services/api-service
+    container_name: aeronorth-api-service
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pgpass}
+      POSTGRES_DB: ${POSTGRES_DB:-uns}
+      API_DEBUG: ${API_DEBUG:-false}
+      API_CORS_ORIGINS: '["http://localhost:5173"]'
+    ports:
+      - "8000:8000"
+    networks:
+      - uns-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   telegraf:
     image: telegraf:1.33
     container_name: aeronorth-telegraf
@@ -98,3 +139,4 @@ volumes:
   emqx-data:
   emqx-log:
   timescaledb-data:
+  postgres-data:
